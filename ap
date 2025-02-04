@@ -1,21 +1,22 @@
-import csv
 import pandas as pd
-from collections import defaultdict
+import seaborn as sns
+import matplotlib.pyplot as plt
 from itertools import combinations
+from collections import defaultdict
 from mlxtend.frequent_patterns import fpgrowth, association_rules
 
 
 def read_transactions_from_csv(filename):
     df = pd.read_csv(filename, header=None, dtype=str)
     transactions = [set(df.iloc[i].dropna().str.strip()) for i in range(len(df))]
-    print(transactions)
     return transactions
 
+"""
 def read_transactions_from_csv(filename):
     df = pd.read_csv(filename, dtype=str).fillna("")
     transactions = df.apply(lambda row: [item.strip() for item in row if item.strip()], axis=1).tolist()
     return transactions
-
+"""
 
 def has_infrequent_subset(candidate, frequent_itemsets):
     for subset in combinations(candidate, len(candidate) - 1):
@@ -30,6 +31,7 @@ def get_frequent_itemsets(transactions, min_support):
             item_counts[frozenset([item])] += 1
 
     min_support_count = len(transactions) * min_support
+
     frequent_itemsets = {}
 
     for itemset, count in item_counts.items():
@@ -41,7 +43,6 @@ def get_frequent_itemsets(transactions, min_support):
         candidates = set()
 
         frequent_items = list(frequent_itemsets.keys())
-        print(frequent_items)
 
         for i in range(len(frequent_items)):
             for j in range(i + 1, len(frequent_items)):
@@ -100,7 +101,6 @@ def sort_by_confidence(rule):
     return rule[2]
 
 def print_rules(rules):
-    """Print association rules in a readable format."""
     for antecedent, consequent, confidence, support in rules:
         print(f"{antecedent} => {consequent}")
         print(f"Confidence: {confidence:.2%}")
@@ -108,12 +108,10 @@ def print_rules(rules):
         print("-" * 50)
 
 def convert_to_dataframe(transactions):
-    """Convert transactions into a one-hot encoded Pandas DataFrame."""
     unique_items = sorted(set(item for transaction in transactions for item in transaction))
     df = pd.DataFrame([{item: (item in transaction) for item in unique_items} for transaction in transactions])
     return df
 
-v
 filename = "data.csv"
 min_support = 0.2
 min_confidence = 0.5
@@ -141,3 +139,13 @@ print(frequent_itemsets)
 
 print("\nAssociation Rules:")
 print(rules[['antecedents', 'consequents', 'support', 'confidence']])
+
+
+# Top Frequent Itemsets - Bar Chart
+plt.figure(figsize=(10, 5))
+frequent_itemsets.nlargest(10, 'support').plot(kind="bar", x="itemsets", y="support", legend=False, color="skyblue")
+plt.xlabel("Itemsets")
+plt.ylabel("Support")
+plt.title("Top 10 Frequent Itemsets")
+plt.xticks(rotation=45, ha='right')
+plt.show()
