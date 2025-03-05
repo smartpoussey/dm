@@ -1,324 +1,209 @@
-import itertools
-import random
-
-data = [
-    {'Age': 25, 'Salary': 50000, 'City': 'New York', 'Purchased': 'Yes'},
-    {'Age': 30, 'Salary': 60000, 'City': 'Los Angeles', 'Purchased': 'No'},
-    {'Age': 35, 'Salary': None, 'City': 'Chicago', 'Purchased': 'Yes'},
-    {'Age': None, 'Salary': 80000, 'City': 'New York', 'Purchased': 'No'},
-    {'Age': 40, 'Salary': 70000, 'City': 'Los Angeles', 'Purchased': 'Yes'}
-]
-
-# 1 Data Preprocessing - Handling Missing Values
-def fill_missing_values(data):
-    for column in ['Age', 'Salary']:
-        values = [row[column] for row in data if row[column] is not None]
-        mean_value = sum(values) / len(values)
-        for row in data:
-            if row[column] is None:
-                row[column] = mean_value
-    return data
-
-data = fill_missing_values(data)
-
-# 2. Sampling Methods
-def random_sampling(data, sample_size):
-    return random.sample(data, sample_size)
-
-sampled_data = random_sampling(data, 3)
-
-# 3. SMOTE (Synthetic Minority Over-sampling Technique)
-def smote(data, target_column, minority_class, k=2):
-    minority_samples = [row for row in data if row[target_column] == minority_class]
-    synthetic_samples = []
-    
-    for _ in range(len(minority_samples)):
-        sample1, sample2 = random.sample(minority_samples, 2)
-        synthetic_sample = {col: sample1[col] + random.uniform(0, 1) * (sample2[col] - sample1[col]) if isinstance(sample1[col], (int, float)) else sample1[col] for col in sample1}
-        synthetic_samples.append(synthetic_sample)
-    
-    return data + synthetic_samples
-
-data = smote(data, 'Purchased_Yes', 1)
-
-# 4. Normalize Data (Max Absolute and Min-Max Scaling)
-def min_max_scaling(data, column):
-    values = [row[column] for row in data]
-    min_val, max_val = min(values), max(values)
-    for row in data:
-        row[column] = (row[column] - min_val) / (max_val - min_val)
-    return data
-
-data = min_max_scaling(data, 'Salary')
-
-# 5. Standardization (Z-Score)
-def z_score_standardization(data, column):
-    values = [row[column] for row in data]
-    mean_val = sum(values) / len(values)
-    std_dev = (sum([(x - mean_val) ** 2 for x in values]) / len(values)) ** 0.5
-    for row in data:
-        row[column] = (row[column] - mean_val) / std_dev
-    return data
-
-data = z_score_standardization(data, 'Age')
-
-# 6. Detect and Remove Outliers (Using IQR)
-def remove_outliers(data, column):
-    values = [row[column] for row in data]
-    q1, q3 = sorted(values)[int(len(values) * 0.25)], sorted(values)[int(len(values) * 0.75)]
-    iqr = q3 - q1
-    lower_bound, upper_bound = q1 - 1.5 * iqr, q3 + 1.5 * iqr
-    return [row for row in data if lower_bound <= row[column] <= upper_bound]
-
-data = remove_outliers(data, 'Salary')
-
-# 7. Label Encoding for Categorical Data
-def label_encoding(data, column):
-    unique_values = {val: idx for idx, val in enumerate(set(row[column] for row in data))}
-    for row in data:
-        row[column] = unique_values[row[column]]
-    return data
-
-data = label_encoding(data, 'City')
-
-# 8. One hot encoding for the categorical attributes 
-def one_hot_encoding(data, column):
-    unique_values = set(row[column] for row in data)
-    for row in data:
-        for unique in unique_values:
-            row[f"{column}_{unique}"] = 1 if row[column] == unique else 0
-        del row[column]
-    return data
-
-data = one_hot_encoding(data, 'Purchased')
-
-# 9. Target Mean Encoding
-def target_mean_encoding(data, column, target):
-    category_means = {}
-    for row in data:
-        category_means.setdefault(row[column], []).append(row[target])
-    category_means = {k: sum(v)/len(v) for k, v in category_means.items()}
-    for row in data:
-        row[column] = category_means[row[column]]
-    return data
-
-data = target_mean_encoding(data, 'City', 'Purchased_Yes')
-
-# 10. Frequency Encoding
-def frequency_encoding(data, column):
-    frequencies = {}
-    for row in data:
-        frequencies[row[column]] = frequencies.get(row[column], 0) + 1
-    for row in data:
-        row[column] = frequencies[row[column]]
-    return data
-
-data = frequency_encoding(data, 'City')
-      
-# 12. Binning Methods (Equal-width Binning)
-def binning(data, column, bins):
-    values = [row[column] for row in data]
-    min_val, max_val = min(values), max(values)
-    bin_width = (max_val - min_val) / bins
-    for row in data:
-        row[column] = int((row[column] - min_val) / bin_width)
-    return data
-
-data = binning(data, 'Salary', 3)
-
-# 13. Feature Selection Using Chi-Square (Categorical Data)
-def chi_square_feature_selection(data, target_column):
-    category_counts = {}
-    for row in data:
-        key = (row[target_column], row['City'])
-        category_counts[key] = category_counts.get(key, 0) + 1
-    return category_counts
-
-chi_square_result = chi_square_feature_selection(data, 'Purchased_Yes')
-          
-# Transactions dataset
-transactions = [
-    {'Milk', 'Bread', 'Eggs'},
-    {'Bread', 'Butter', 'Eggs'},
-    {'Milk', 'Bread', 'Butter', 'Cheese'},
-    {'Milk', 'Butter', 'Cheese', 'Eggs'},
-    {'Bread', 'Butter', 'Cheese'},
-    {'Milk', 'Bread', 'Eggs'}
-]
-
-# Parameters
-min_support = 0.3
-min_confidence = 0.7  # Example: minimum confidence of 70%
-
-# Run Apriori Algorithm
-frequent_itemsets = apriori(transactions, min_support)
-print("Frequent Itemsets:", frequent_itemsets)
-
-# Generate and print strong association rules
-strong_rules = generate_association_rules(frequent_itemsets, transactions, min_confidence)
-print("\nStrong Association Rules:")
-for rule in strong_rules:
-    print(f"{set(rule[0])} => {set(rule[1])} (Confidence: {rule[2]:.2f})")
-
-
-
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-from itertools import combinations
-from collections import defaultdict
-from mlxtend.frequent_patterns import fpgrowth, association_rules
+
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.ensemble import RandomForestClassifier, VotingClassifier, StackingClassifier, AdaBoostClassifier, GradientBoostingClassifier
+
+from sklearn.svm import SVC
+from sklearn.naive_bayes import GaussianNB
+
+from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier
+from catboost import CatBoostClassifier    
+
+def load_data():
+    df = pd.read_csv("/content/drug200.csv")
+    df.fillna(df.mode().iloc[0], inplace=True)
+    
+    categorical_features = df.select_dtypes(include=['object']).columns.tolist()
+    df[categorical_features] = df[categorical_features].apply(LabelEncoder().fit_transform)
+    
+    target_column = "Drug"
+    X = df.drop(columns=[target_column])
+    y = df[target_column]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    
+    scaler = StandardScaler()
+    return scaler.fit_transform(X_train), scaler.transform(X_test), y_train, y_test, X.columns
+
+def plot_metrics(y_true, y_pred, model_name, param, feature_importance=None, feature_names=None):
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(confusion_matrix(y_true, y_pred), annot=True, fmt='d')
+    plt.title(f'Confusion Matrix: {model_name} ({param})')
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.show()
+    
+    if feature_importance is not None and feature_names is not None:
+        plt.figure(figsize=(10, 6))
+        sorted_idx = np.argsort(feature_importance)
+        plt.barh([feature_names[i] for i in sorted_idx], feature_importance[sorted_idx])
+        plt.title(f'Feature Importance: {model_name} ({param})')
+        plt.show()
+
+def train_and_evaluate(model, X_train, X_test, y_train, y_test, model_name, param, feature_names=None):
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    
+    print(f'\n{model_name} ({param})')
+    print("Accuracy:", accuracy_score(y_test, y_pred))
+    print("Classification Report:\n", classification_report(y_test, y_pred, zero_division=1))
+    
+    feature_importance = getattr(model, 'feature_importances_', None)
+    plot_metrics(y_test, y_pred, model_name, param, feature_importance, feature_names)
+
+def knn_best_k(X_train, X_test, y_train, y_test):
+    knn_params = {'n_neighbors': list(range(1, 11))}
+    knn = GridSearchCV(KNeighborsClassifier(), knn_params, scoring='accuracy', cv=3).fit(X_train, y_train).best_estimator_
+    train_and_evaluate(knn, X_train, X_test, y_train, y_test, "KNN", f'Best k={knn.n_neighbors}')
+
+def ensemble_classification(X_train, X_test, y_train, y_test):
+    models = {
+        'RandomForest': RandomForestClassifier(n_estimators=50, random_state=42),
+        'GradientBoosting': GradientBoostingClassifier(n_estimators=50, learning_rate=0.1, random_state=42),
+        'AdaBoost': AdaBoostClassifier(n_estimators=50, learning_rate=0.1, random_state=42)
+    }
+    ensemble = VotingClassifier(estimators=[(name, model) for name, model in models.items()], voting='hard')
+    train_and_evaluate(ensemble, X_train, X_test, y_train, y_test, "Ensemble", "Voting")
+
+def boosting_classification(X_train, X_test, y_train, y_test):
+    models = {
+        'AdaBoost': AdaBoostClassifier(n_estimators=50, random_state=42),
+        'CatBoost': CatBoostClassifier(n_estimators=50, verbose=0, random_state=42),
+        'GradientBoosting': GradientBoostingClassifier(n_estimators=50, learning_rate=0.1, random_state=42),
+        'LGBM': LGBMClassifier(n_estimators=50, random_state=42),
+        'XGBoost': XGBClassifier(n_estimators=50, use_label_encoder=False, eval_metric='logloss', random_state=42)
+    }
+    for name, model in models.items():
+        train_and_evaluate(model, X_train, X_test, y_train, y_test, name, "Boosting")
+
+def stacking_classification(X_train, X_test, y_train, y_test):
+    base_models = [
+        ('RandomForest', RandomForestClassifier(n_estimators=100, random_state=42)),
+        ('SVM', SVC(probability=True, random_state=42)),
+        ('NaiveBayes', GaussianNB())
+    ]
+    stack = StackingClassifier(estimators=base_models, final_estimator=LogisticRegression())
+    train_and_evaluate(stack, X_train, X_test, y_train, y_test, "Stacking", "Meta-Logistic")
+
+def cascading_classification(X_train, X_test, y_train, y_test):
+    rf = RandomForestClassifier(n_estimators=100, random_state=42)
+    rf.fit(X_train, y_train)
+    X_train_ext = np.hstack((X_train, rf.predict(X_train).reshape(-1, 1)))
+    X_test_ext = np.hstack((X_test, rf.predict(X_test).reshape(-1, 1)))
+    train_and_evaluate(LogisticRegression(), X_train_ext, X_test_ext, y_train, y_test, "Cascading", "RF+Logistic")
+
+X_train, X_test, y_train, y_test, feature_names = load_data()
+
+models = {
+    'KNN': KNeighborsClassifier(n_neighbors=3),
+    'Decision Tree': DecisionTreeClassifier(max_depth=5, random_state=42),
+    'Random Forest': RandomForestClassifier(n_estimators=50, random_state=42)
+}
+
+for name, model in models.items():
+    train_and_evaluate(model, X_train, X_test, y_train, y_test, name, "Default", feature_names)
+
+knn_best_k(X_train, X_test, y_train, y_test)
+ensemble_classification(X_train, X_test, y_train, y_test)
+boosting_classification(X_train, X_test, y_train, y_test)
+cascading_classification(X_train, X_test, y_train, y_test)
+stacking_classification(X_train, X_test, y_train, y_test)
 
 
-def read_transactions_from_csv(filename):
-    df = pd.read_csv(filename, header=None, dtype=str)
-    transactions = [set(df.iloc[i].dropna().str.strip()) for i in range(len(df))]
-    return transactions
-
-"""
-def read_transactions_from_csv(filename):
-    df = pd.read_csv(filename, dtype=str).fillna("")
-    transactions = df.apply(lambda row: [item.strip() for item in row if item.strip()], axis=1).tolist()
-    return transactions
-"""
-
-def has_infrequent_subset(candidate, frequent_itemsets):
-    for subset in combinations(candidate, len(candidate) - 1):
-        if frozenset(subset) not in frequent_itemsets:
-            return False
-    return True
-
-def get_frequent_itemsets(transactions, min_support):
-    item_counts = defaultdict(int)
-    for transaction in transactions:
-        for item in transaction:
-            item_counts[frozenset([item])] += 1
-
-    min_support_count = len(transactions) * min_support
-
-    frequent_itemsets = {}
-
-    for itemset, count in item_counts.items():
-        if count >= min_support_count:
-            frequent_itemsets[itemset] = count
-
-    k = 2
-    while True:
-        candidates = set()
-
-        frequent_items = list(frequent_itemsets.keys())
-
-        for i in range(len(frequent_items)):
-            for j in range(i + 1, len(frequent_items)):
-                items1 = set(frequent_items[i])
-                items2 = set(frequent_items[j])
-                union = items1.union(items2)
-                if len(union) == k and has_infrequent_subset(union, frequent_itemsets):
-                    candidates.add(frozenset(union))
-
-        if not candidates:
-            break
-
-        candidate_counts = defaultdict(int)
-        for transaction in transactions:
-            for candidate in candidates:
-                if candidate.issubset(transaction):
-                    candidate_counts[candidate] += 1
-
-        new_frequent = {}
-        for itemset, count in candidate_counts.items():
-            if count >= min_support_count:
-                new_frequent[itemset] = count
-
-        if not new_frequent:
-            break
-
-        frequent_itemsets.update(new_frequent)
-        k += 1
-
-    return frequent_itemsets
-
-
-def generate_association_rules(frequent_itemsets, transactions, min_confidence):
-    rules = []
-    total_transactions = len(transactions)
-
-    for itemset, support in frequent_itemsets.items():
-        if len(itemset) < 2:
-            continue
-
-        for i in range(1, len(itemset)):
-            for antecedent in combinations(itemset, i):
-                antecedent = frozenset(antecedent)
-                consequent = frozenset(itemset - antecedent)
-                antecedent_support = sum(1 for t in transactions if antecedent.issubset(t))
-                confidence = support / antecedent_support
-
-                if confidence >= min_confidence:
-                    support_percentage = support / total_transactions
-                    rules.append((set(antecedent), set(consequent), confidence, support_percentage))
-
-    rules.sort(key=sort_by_confidence, reverse=True)
-    return rules
-
-def sort_by_confidence(rule):
-    return rule[2]
-
-def print_rules(rules):
-    for antecedent, consequent, confidence, support in rules:
-        print(f"{antecedent} => {consequent}")
-        print(f"Confidence: {confidence:.2%}")
-        print(f"Support: {support:.2%}")
-        print("-" * 50)
-
-def convert_to_dataframe(transactions):
-    unique_items = sorted(set(item for transaction in transactions for item in transaction))
-    df = pd.DataFrame([{item: (item in transaction) for item in unique_items} for transaction in transactions])
-    return df
-
-filename = "data.csv"
-min_support = 0.2
-min_confidence = 0.5
-
-transactions = read_transactions_from_csv(filename)
-frequent_itemsets = get_frequent_itemsets(transactions, min_support)
-print("Frequent Itemsets:")
-for itemset, support in frequent_itemsets.items():
-    print(f"{itemset} (Support: {support})")
-
-print("\nAssociation Rules:")
-rules = generate_association_rules(frequent_itemsets, transactions, min_confidence)
-print_rules(rules)
-
-
-df = convert_to_dataframe(transactions)
-
-# Apply FP-Growth algorithm
-frequent_itemsets = fpgrowth(df, min_support=min_support, use_colnames=True)
-
-rules = association_rules(frequent_itemsets, metric="confidence", min_threshold=min_confidence)
-
-print("\nFrequent Itemsets:")
-print(frequent_itemsets)
-
-print("\nAssociation Rules:")
-print(rules[['antecedents', 'consequents', 'support', 'confidence']])
-
-
-# Top Frequent Itemsets - Bar Chart
-plt.figure(figsize=(10, 5))
-frequent_itemsets.nlargest(10, 'support').plot(kind="bar", x="itemsets", y="support", legend=False, color="skyblue")
-plt.xlabel("Itemsets")
-plt.ylabel("Support")
-plt.title("Top 10 Frequent Itemsets")
-plt.xticks(rotation=45, ha='right')
-plt.show()
-
-
+import numpy as np
 import pandas as pd
-from mlxtend.frequent_patterns import fpgrowth
-data = pd.read_csv('data.csv')
-onehot_data = data.applymap(lambda x: 1 if pd.notnull(x) else 0)
-min_support = 0.3
-frequent_itemsets = fpgrowth(onehot_data, min_support=min_support, use_colnames=True)
-print(frequent_itemsets)
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy.cluster.hierarchy import dendrogram, linkage
+
+from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans, DBSCAN
+from sklearn.metrics import silhouette_score
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+
+def load_and_preprocess_data(filepath):
+    df = pd.read_csv(filepath).dropna(how='all')
+
+    categorical_features = df.select_dtypes(include=['object']).columns
+    for feature in categorical_features:
+        df[feature] = LabelEncoder().fit_transform(df[feature].astype(str))
+
+    df.fillna(df.mean(), inplace=True)
+    X_scaled = StandardScaler().fit_transform(df)
+
+    return X_scaled
+
+# Find optimal k using Elbow Method
+def find_optimal_k(X, max_k=10):
+    distortions = []
+    for k in range(1, max_k + 1):
+        kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+        kmeans.fit(X)
+        distortions.append(kmeans.inertia_)
+    
+    plt.figure(figsize=(8, 5))
+    plt.plot(range(1, max_k + 1), distortions, marker='o')
+    plt.xlabel('Number of Clusters (k)')
+    plt.ylabel('Inertia')
+    plt.title('Elbow Method for Optimal k')
+    plt.show()
+
+# K-Means Clustering
+def perform_kmeans_clustering(X, n_clusters):
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    labels = kmeans.fit_predict(X)
+    
+    print(f"\nK-Means Clustering with {n_clusters} Clusters")
+    print(f"Silhouette Score: {silhouette_score(X, labels):.4f}")
+    
+    pca = PCA(n_components=2)
+    X_pca = pca.fit_transform(X)
+    plt.figure(figsize=(8, 6))
+    sns.scatterplot(x=X_pca[:, 0], y=X_pca[:, 1], hue=labels, palette='viridis')
+    plt.title(f'K-Means Clustering Visualization (n={n_clusters})')
+    plt.xlabel('Principal Component 1')
+    plt.ylabel('Principal Component 2')
+    plt.show()
+
+# Hierarchical Clustering
+def perform_hierarchical_clustering(X):
+    plt.figure(figsize=(10, 7))
+    dendrogram(linkage(X, method='ward'))
+    plt.title('Hierarchical Clustering Dendrogram')
+    plt.xlabel('Sample Index')
+    plt.ylabel('Distance')
+    plt.show()
+
+# DBSCAN Clustering
+def perform_dbscan_clustering(X, eps=0.5, min_samples=5):
+    dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+    labels = dbscan.fit_predict(X)
+    
+    print("\nDBSCAN Clustering")
+    print(f"Clusters Found: {len(set(labels)) - (1 if -1 in labels else 0)}")
+    print(f"Silhouette Score: {silhouette_score(X, labels) if len(set(labels)) > 1 else 'N/A'}")
+    
+    pca = PCA(n_components=2)
+    X_pca = pca.fit_transform(X)
+    plt.figure(figsize=(8, 6))
+    sns.scatterplot(x=X_pca[:, 0], y=X_pca[:, 1], hue=labels, palette='Set1')
+    plt.title('DBSCAN Clustering Visualization')
+    plt.xlabel('Principal Component 1')
+    plt.ylabel('Principal Component 2')
+    plt.show()
+
+X_scaled = load_and_preprocess_data('/content/drug200.csv')
+find_optimal_k(X_scaled)
+
+perform_kmeans_clustering(X_scaled, n_clusters=3)
+perform_hierarchical_clustering(X_scaled)
+perform_dbscan_clustering(X_scaled, eps=0.7, min_samples=5)
